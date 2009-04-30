@@ -9,14 +9,17 @@ import Model
 HOST = 'localhost'
 DATABASE = 'bills'
 
-def getDbs():
-    user = raw_input('User name: ')
-    password = getpass()
+def getBillsDbs(user, password):
     host = HOST
     database = DATABASE
     dbs = 'postgres://%s:%s@%s/%s' % tuple(map(quote_plus,
         (user, password, host, database)))
     return dbs
+
+def getDbs():
+    user = raw_input('User name: ')
+    password = getpass()
+    return getBillsDbs(user, password)
 
 db = None
 
