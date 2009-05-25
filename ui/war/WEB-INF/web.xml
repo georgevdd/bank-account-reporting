@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE web-app
+    PUBLIC "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
+    "http://java.sun.com/dtd/web-app_2_3.dtd">
+
+<web-app>
+
+  <!-- Default page to serve -->
+  <welcome-file-list>
+    <welcome-file>Ui.html</welcome-file>
+  </welcome-file-list>
+  
+  <!-- Servlets -->  
+  <servlet>
+    <servlet-name>proxy</servlet-name>
+    <servlet-class>com.jsos.httpproxy.HttpProxyServlet</servlet-class>
+    <init-param>
+      <param-name>host</param-name>
+      <param-value>http://localhost:1337</param-value>
+    </init-param>
+    <init-param>
+      <param-name>uri</param-name>
+      <param-value>/data</param-value>
+    </init-param>
+  </servlet>
+
+  <servlet-mapping>
+    <servlet-name>proxy</servlet-name>
+    <url-pattern>/data/*</url-pattern>
+  </servlet-mapping>
+</web-app>
