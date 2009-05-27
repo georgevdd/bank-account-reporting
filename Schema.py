@@ -40,5 +40,56 @@ importedStatement = Table('imported_statement', md,
     eventstampColumn(),
 )
 
+person = Table('person', md,
+    Column('person_id', Integer, primary_key=True),
+    Column('given_name', String, nullable=False),
+    Column('family_name', String, nullable=False)
+)
+
+personTenancy = Table('person_tenancy', md,
+    Column('tenancy_id', Integer, primary_key=True),
+    eventstampColumn(),
+    Column('person_id', Integer, ForeignKey('person.person_id'), nullable=False),
+    Column('date_moved_in', Date, nullable=False),
+    Column('date_moved_out', Date, nullable=True)
+)
+
+personPayment = Table('person_payment', md,
+    Column('payment_id', Integer, primary_key=True),
+    eventstampColumn(),
+    Column('person_id', Integer, ForeignKey('person.person_id'), nullable=False),
+    Column('payment_date', Date, nullable=False),
+    Column('amount', Decimal, nullable=False),
+    Column('evidence_type', String(10), nullable=False)
+)
+
+paymentStatementEvidence = Table('payment_statement_evidence', md,
+    Column('payment_id', Integer, ForeignKey('person_payment.payment_id'), primary_key=True),
+    Column('fitid', String, ForeignKey('stmtitem.fitid'), nullable=False)
+)
+
+paymentOtherEvidence = Table('payment_other_evidence', md,
+    Column('payment_id', Integer, ForeignKey('person_payment.payment_id'), primary_key=True),
+    Column('explanation', String, nullable=False)
+)
+
+invoiceableItem = Table('invoiceable_item', md,
+    Column('invoiceable_item_id', Integer, primary_key=True),
+    eventstampColumn(),
+    Column('fitid', String, ForeignKey('stmtitem.fitid'), nullable=False)
+)
+
+personInvoice = Table('person_invoice', md,
+    Column('invoice_id', Integer, primary_key=True),
+    eventstampColumn(),
+    Column('person_id', Integer, ForeignKey('person.person_id'), nullable=False),
+    Column('invoice_date', Date, nullable=False),
+    Column('amount', Decimal, nullable=False)
+)
+
+likelyInvoiceable = Table('likely_invoiceable', md,
+    Column('pattern', String, primary_key=True)
+)
+
 metadata = md
 del md

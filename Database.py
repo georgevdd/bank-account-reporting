@@ -78,7 +78,7 @@ def flushSession():
     session = getSession()
     session.flush()
     # A new Event will be created lazily if necessary.
-    Model.Event.currentEvent = None    
+    Model.Event.currentEvent = None
 
 def resetSession():
     print 'resetSession()',
@@ -88,7 +88,7 @@ def resetSession():
     # A new Event will be created lazily if necessary.
     Model.Event.currentEvent = None
 
-if __name__ == '__main__':
+def main():
     import sys
     argv = sys.argv
     action = argv[1]
@@ -98,3 +98,6 @@ if __name__ == '__main__':
         rebuildSchema()
     else:
         print 'Unknown action', action
+
+if __name__ == '__main__':
+    main()
