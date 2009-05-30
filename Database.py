@@ -74,14 +74,12 @@ def getSession():
     return __session__
 
 def flushSession():
-    print 'flushSession()',
     session = getSession()
     session.flush()
     # A new Event will be created lazily if necessary.
     Model.Event.currentEvent = None
 
 def resetSession():
-    print 'resetSession()',
     session = getSession()
     session.flush()
     session.expunge_all()

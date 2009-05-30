@@ -22,9 +22,7 @@ class TransactionTest(DatabaseTestCase):
             self.session.add(t)
         resetSession()
         t1 = self.listViewOf(t1)
-        self.engine.echo="debug"
         t2 = self.listViewOf(t2)
-        self.engine.echo=False
         self.assert_(t1.isLikelyInvoiceable)
         self.assert_(not t2.isLikelyInvoiceable)
 

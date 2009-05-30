@@ -6,9 +6,11 @@ from Database import ensureSession, resetSession
 from MsMoney import Statement
 import StatementStore
 
+genDownloadedStatementFilenames = StatementStore.genDownloadedStatementFilenames
+
 def importAll():
     session = ensureSession()
-    for filename in StatementStore.genDownloadedStatementFilenames():
+    for filename in genDownloadedStatementFilenames():
         stmt = Statement(open(filename))
         print '%s - %s' % (stmt.beginDate, stmt.endDate),
         stmt_exists = (session.query(Model.ImportedStatement)

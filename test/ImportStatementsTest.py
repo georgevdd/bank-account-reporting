@@ -1,10 +1,11 @@
+import TestSetup
 from unittest import TestCase
 from datetime import date
 from decimal import Decimal
 from TestSetup import testDbs, resetSession, DatabaseTestCase
 from StringIO import StringIO
-import MsMoney, Mapping
-from Mapping import ImportedStatement
+import MsMoney, Model
+from Model import ImportedStatement
 
 import ImportStatements as IS
 import Database as DB
@@ -37,8 +38,8 @@ class ImportStatementsTest(DatabaseTestCase):
 
     def testImportAllCreatesImportedStatements(self):
         IS.importAll()
-        resetSession()
-        importedStatements = self.session.query(ImportedStatement).select()
+
+        importedStatements = list(self.session.query(ImportedStatement))
         self.assertNotEqual(None, importedStatements)
         self.assertEqual(1, len(importedStatements))
         record = importedStatements[0]
@@ -47,8 +48,8 @@ class ImportStatementsTest(DatabaseTestCase):
 
     def testImportAllCreatesTransactions(self):
         IS.importAll()
-        resetSession()
-        transactions = self.session.query(Mapping.Transaction).select()
+
+        transactions = list(self.session.query(Model.Transaction))
         self.assertNotEqual(None, transactions)
         self.assertEqual(2, len(transactions))
         
