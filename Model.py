@@ -132,14 +132,20 @@ class Invoice(EventStamped):
             .query(Invoice) \
             .filter(
                 (Invoice.personId == self.personId) &
-                (Invoice.eventId <= self.creationEvent.eventId) &
+                self._hasNoEarlierEventIdThan(Invoice.eventId) &
                 (Invoice.invoiceDate < self.invoiceDate)) \
             .order_by(Invoice.invoiceDate.desc()) \
             .first()
         return result
     previousInvoice = property(_get_previousInvoice)
 
-    def _no_previous_invoice_since(self, eventIdProperty, dateProperty):
+    def _hasNoEarlierEventIdThan(self, eventIdProperty):
+        if self.eventId is None:
+            return True
+        else:
+            return eventIdProperty <= self.eventId
+
+    def _noPreviousInvoiceSince(self, eventIdProperty, dateProperty):
         return ~sqlalchemy.exists([Invoice.invoiceId],
             (Invoice.personId == self.personId) &
             (eventIdProperty <= Invoice.eventId) &
@@ -151,9 +157,9 @@ class Invoice(EventStamped):
             .query(InvoiceableItem) \
             .filter(
                 (InvoiceableItem.fitid == Transaction.fitid) &
-                (InvoiceableItem.eventId <= self.eventId) &
+                self._hasNoEarlierEventIdThan(InvoiceableItem.eventId) &
                 (Transaction.date <= self.invoiceDate) &
-                self._no_previous_invoice_since(
+                self._noPreviousInvoiceSince(
                     InvoiceableItem.eventId, Transaction.date) &
                 Tenancy.includes(self.personId, Transaction.date))
     items = property(_get_items)
@@ -166,9 +172,9 @@ class Invoice(EventStamped):
             .query(Payment) \
             .filter(
                 (Payment.personId == self.personId) &
-                (Payment.eventId <= self.eventId) &
+                self._hasNoEarlierEventIdThan(Payment.eventId) &
                 (Payment.paymentDate <= self.invoiceDate) &
-                self._no_previous_invoice_since(Payment.eventId, Payment.paymentDate)) \
+                self._noPreviousInvoiceSince(Payment.eventId, Payment.paymentDate)) \
             .order_by([Payment.paymentDate])
     payments = property(_get_payments)
     
@@ -222,7 +228,7 @@ def initMappings():
         .label('isPayment')
 
     transactionListSelect = a.select([
-        s.statementItem.c.fitid,
+        s.statementItem,
         isLikelyInvoiceable,
         isInvoiceable,
         isLikelyPayment,
