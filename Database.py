@@ -61,11 +61,14 @@ def addNewSchemaTables():
 
 __session__ = None
 
+def createSession():
+    return orm.create_session(bind=db)
+
 def ensureSession():
     global __session__
     ensureConnected()
     if __session__ is None:
-        __session__ = orm.create_session(bind=db)
+        __session__ = createSession()
     if __session__ is None:
         raise Exception('Failed to create session (db=%s)' % db)
     return __session__
