@@ -1,3 +1,9 @@
 #!/bin/bash
 
-find . -type f -name '*Test.py' | cut -d . -f 2 | cut -c 2- | tr / . | xargs ./ut.py
+this_dir=${0%/*}
+cd ${this_dir}
+
+find . -type f -name '*Test.py' \
+    | sed -e 's|\./\(.*\)\.py|\1|' \
+    | sed 's|/|.|g' \
+    | xargs ./ut.py
