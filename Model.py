@@ -214,7 +214,7 @@ def initMappings():
             })
 
     isLikelyInvoiceable = a.exists([1],
-        s.statementItem.c.name.like(s.likelyInvoiceable.c.pattern)) \
+        s.statementItem.c.name.ilike(s.likelyInvoiceable.c.pattern)) \
         .correlate(s.statementItem) \
         .label('isLikelyInvoiceable')
     isInvoiceable = a.exists([1],
@@ -237,7 +237,10 @@ def initMappings():
     
     global transactionListMapper
     transactionListMapper = orm.mapper(Transaction,
-        transactionListSelect,
+        transactionListSelect, properties={
+            'date' : s.statementItem.c.dtposted,
+            'amount' : s.statementItem.c.trnamt,
+            },
         non_primary=True)
 
     eventstampedMapper(ImportedStatement, s.importedStatement, properties={
