@@ -7,5 +7,5 @@ class WebRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     reload(Action)
     Action.doAction(self)
 
-server = BaseHTTPServer.HTTPServer(('localhost',1337), WebRequestHandler)
+server = BaseHTTPServer.HTTPServer(('localhost',5000), WebRequestHandler)
 server.serve_forever()
