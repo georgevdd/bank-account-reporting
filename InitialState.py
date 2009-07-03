@@ -1,5 +1,7 @@
+#!/usr/bin/env python
+
 import Model as M
-from Database import getSession, resetSession, rebuildSchema
+from Database import ensureSession, resetSession, rebuildSchema
 from ImportStatements import importAll
 from datetime import date
 # For Python 2.3, decimal is available from
@@ -18,7 +20,7 @@ LIKELY_INVOICEABLE_PATTERNS = [
 def createInitialState():
     rebuildSchema()
     
-    session = getSession()
+    session = ensureSession()
 
     for pattern in LIKELY_INVOICEABLE_PATTERNS:
         session.add(M.LikelyInvoiceable(pattern))
@@ -64,6 +66,12 @@ def createInitialState():
     simon = M.Person('Simon', 'Hill')
     simon.tenancies.append(M.Tenancy(whenSimonReplacedBobby))
 
-    for person in [george, dude, joe, ed, anna, bobby, alexa, simon]:
+    mayuko = M.Person('Mayuko', 'Hill')
+    mayuko.tenancies.append(M.Tenancy(date(2006, 10, 1), date(2007, 1, 16)))
+
+    for person in [george, dude, joe, ed, anna, bobby, alexa, simon, mayuko]:
         session.add(person)
     resetSession()
+
+if __name__ == '__main__':
+    createInitialState()

@@ -1,6 +1,7 @@
 import TestSetup
-from TestSetup import resetSession, DatabaseTestCase
+from TestSetup import resetSession, DatabaseTestCase, getSession
 import Model as M
+from decimal import Decimal
 import InitialState
 
 class InitialStateTest(DatabaseTestCase):
