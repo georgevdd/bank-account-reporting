@@ -1,19 +1,9 @@
 package net.gbmvdd.bank.ui.client;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Set;
 
-import org.eclipse.swt.custom.CBanner;
-
 import com.google.gwt.core.client.EntryPoint;
-import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.JsArray;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -22,30 +12,24 @@ import com.google.gwt.event.dom.client.DomEvent;
 import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.event.dom.client.KeyUpEvent;
 import com.google.gwt.event.dom.client.KeyUpHandler;
-import com.google.gwt.event.shared.GwtEvent;
 import com.google.gwt.http.client.Request;
 import com.google.gwt.http.client.RequestBuilder;
 import com.google.gwt.http.client.RequestCallback;
 import com.google.gwt.http.client.RequestException;
 import com.google.gwt.http.client.Response;
 import com.google.gwt.json.client.JSONArray;
+import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONParser;
-import com.google.gwt.json.client.JSONValue;
-import com.google.gwt.user.client.Event;
-import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.DialogBox;
-import com.google.gwt.user.client.ui.FlexTable;
 import com.google.gwt.user.client.ui.Grid;
 import com.google.gwt.user.client.ui.HTML;
-import com.google.gwt.user.client.ui.HTMLTable;
-import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.RadioButton;
 import com.google.gwt.user.client.ui.RootPanel;
-import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
+import com.google.gwt.user.client.ui.HTMLTable.RowFormatter;
 
 public class Ui implements EntryPoint {
   /**
@@ -110,8 +94,7 @@ public class Ui implements EntryPoint {
       fetchTransactions(startDate, endDate);
     }
   }
-  
-  // Create a handler for the sendButton and nameField
+
   private class TransactionSelectionChangedHandler implements ClickHandler, KeyUpHandler {
     public void onClick(ClickEvent event) {
       adjustSelection(event);
@@ -125,14 +108,34 @@ public class Ui implements EntryPoint {
 
     private void adjustSelection(DomEvent event) {
       String id = ((Widget) event.getSource()).getElement().getId();
-      int row = Integer.parseInt(id.substring(id.indexOf('-') + 1));
+      final int row = Integer.parseInt(id.substring(id.indexOf('-') + 1));
       CheckBox checkBox = ((CheckBox) transactionsTable.getWidget(row, 0));
       Boolean selected = checkBox.getValue();
       String fitid = checkBox.getFormValue();
-      if (selected) {
-        transactionSelection.add(fitid);
-      } else {
-        transactionSelection.remove(fitid);
+
+      Transaction transaction = Transaction.createObject().cast();
+      transaction.setFitId(fitid);
+      transaction.setIsInvoiceable(selected);
+      
+      RequestBuilder rb = new RequestBuilder(
+          RequestBuilder.POST, "/data/transactions/update/" + fitid);
+      rb.setHeader("Content-Type", "application/x-www-form-urlencoded");
+      String requestData =
+          "data=" + transaction.toJSON()
+          + "&_method=PUT";
+      try {
+        rb.sendRequest(requestData, new RequestCallback() {
+
+          public void onError(Request request, Throwable exception) {
+            handleException(exception);
+          }
+
+          public void onResponseReceived(Request request, Response response) {
+            setUpRowForTransaction(transactionsTable, row,
+                Ui.<Transaction>getJson(response));
+          }});
+      } catch (RequestException e) {
+        handleException(e);
       }
     }
   }
@@ -181,22 +184,36 @@ public class Ui implements EntryPoint {
           JsArray<Transaction> records = getJsonArray(response);
           transactionsTable.resize(records.length(), 4);
           for (int i = 0; i < records.length(); ++i) {
-            Transaction transaction = records.get(i);
-
-            CheckBox checkBox = new CheckBox();
-            checkBox.getElement().setId("transaction-" + i);
-            checkBox.setFormValue(transaction.getFitId());
-            transactionsTable.setWidget(i, 0, checkBox);
-            transactionsTable.setText(i, 1, transaction.getDate());
-            transactionsTable.setText(i, 2, transaction.getAmount());
-            transactionsTable.setText(i, 3, transaction.getMemo());
-            checkBox.addClickHandler(onTransactionSelectionChanged);
+            setUpRowForTransaction(transactionsTable, i, records.get(i));
           }
         }
       });
     } catch (RequestException e) {
       handleException(e);
     }
+  }
+
+  private void setUpRowForTransaction(Grid table, int i,
+      Transaction transaction) {
+    CheckBox checkBox = new CheckBox();
+    checkBox.getElement().setId("transaction-" + i);
+    checkBox.setFormValue(transaction.getFitId());
+    checkBox.setValue(transaction.isInvoiceable());
+    table.setWidget(i, 0, checkBox);
+    table.setText(i, 1, transaction.getDate());
+    table.setText(i, 2, transaction.getAmount());
+    table.setText(i, 3, transaction.getMemo());
+    String styleName;
+    if (transaction.isLikelyInvoiceable()) {
+      styleName = "likelyInvoiceable";
+    } else if (transaction.isLikelyPayment()) {
+      styleName = "likelyPayment";
+    } else {
+      styleName = "";
+    }
+    RowFormatter rowFormatter = table.getRowFormatter();
+    rowFormatter.setStyleName(i, styleName);
+    checkBox.addClickHandler(onTransactionSelectionChanged);
   }
 
   private void handleException(Throwable e) {
@@ -234,12 +251,18 @@ public class Ui implements EntryPoint {
     dialogBox.setTitle(e.toString());
     dialogBox.setText("Sorry!");
   }
+  
+  @SuppressWarnings("unchecked")
+  public static <T extends JavaScriptObject> T getJson(Response response) {
+    JSONObject result = (JSONObject) JSONParser.parse(response.getText());
+    return (T) result.getJavaScriptObject();
+  }
 
   public static <T extends JavaScriptObject> JsArray<T> getJsonArray(Response response) {
     JSONArray results = (JSONArray) JSONParser.parse(response
         .getText());
     @SuppressWarnings("unchecked")
-    JsArray<T> records = (JsArray<T>) results .getJavaScriptObject();
+    JsArray<T> records = (JsArray<T>) results.getJavaScriptObject();
     return records;
   }
 }
