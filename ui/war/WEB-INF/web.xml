@@ -16,7 +16,7 @@
     <servlet-class>com.jsos.httpproxy.HttpProxyServlet</servlet-class>
     <init-param>
       <param-name>host</param-name>
-      <param-value>http://localhost:1337</param-value>
+      <param-value>http://localhost:5000</param-value>
     </init-param>
     <init-param>
       <param-name>uri</param-name>
