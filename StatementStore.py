@@ -8,7 +8,7 @@ from datetime import date
 import os
 import re
 
-STORE_PATH = "bank-statements/"
+STORE_PATH = "/home/georgevdd/bills/bank-statements/"
 
 def statementFilename(stmt):
     return '%s_%s' % (stmt.beginDate.isoformat(), stmt.endDate.isoformat())
