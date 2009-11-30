@@ -1,4 +1,3 @@
-import TestSetup
 from TestSetup import resetSession, DatabaseTestCase, getSession
 import Model as M
 from decimal import Decimal

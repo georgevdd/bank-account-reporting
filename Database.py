@@ -15,10 +15,14 @@ def getBillsDbs(user, password):
     dbs = 'postgres://%s:%s@%s/%s' % tuple(map(quote_plus,
         (user, password, host, database)))
     return dbs
-
-def getDbs():
+    
+def collectLoginDetails():
     user = raw_input('User name: ')
     password = getpass()
+    return user, password
+
+def getDbs():
+    user, password = collectLoginDetails()
     return getBillsDbs(user, password)
 
 db = None
