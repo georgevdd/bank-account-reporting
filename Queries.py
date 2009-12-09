@@ -3,12 +3,12 @@ from sqlalchemy.sql import asc, cast, func
 from sqlalchemy.types import INT
 
 import Model as M
-from Database import ensureSession, resetSession, rebuildSchema
+from Database import ensureSession, resetSession, requireSession
 
 date_part = func.date_part
 
 def allTransactionMonths():
-  session = ensureSession()
+  session = requireSession()
   parts = "year", "month"
   query = session \
       .query(*[cast(date_part(p, M.Transaction.date), INT)
@@ -18,7 +18,7 @@ def allTransactionMonths():
   return list(query)
 
 def transactionsInDateRange(start, end):
-  session = ensureSession()
+  session = requireSession()
   query = session \
       .query(M.transactionListMapper) \
       .filter((M.transactionListMapper.c.date >= start)
@@ -33,3 +33,10 @@ def transactionsForMonth(year, month):
     end_year, end_month = year, month+1
   return transactionsInDateRange(date(year, month, 1),
                                  date(end_year, end_month, 1))
+
+def markTransactionAsInvoiceable(t, invoiceable):
+  session = requireSession()
+  if invoiceable and not t.isInvoiceable:
+    session.add(M.InvoiceableItem(t))
+  elif t.isInvoiceable and not invoiceable:
+    raise NotImplementedError
