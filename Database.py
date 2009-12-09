@@ -4,6 +4,7 @@ import sqlalchemy as sqla
 import sqlalchemy.orm as orm
 from getpass import getpass
 from urllib import quote_plus
+import sys
 import Model
 
 HOST = 'localhost'
@@ -18,7 +19,10 @@ def getBillsDbs(user, password):
     
 def collectLoginDetails():
     user = raw_input('User name: ')
-    password = getpass()
+    if sys.stdin.isatty():
+        password = getpass()
+    else:
+        password = sys.stdin.readline().strip()
     return user, password
 
 def getDbs():
@@ -77,6 +81,11 @@ def ensureSession():
         raise Exception('Failed to create session (db=%s)' % db)
     return __session__
 
+def requireSession():
+    if __session__ is None:
+        raise Exception("No session.")
+    return __session__
+
 def getSession():
     return __session__
 
@@ -92,6 +101,12 @@ def resetSession():
     session.expunge_all()
     # A new Event will be created lazily if necessary.
     Model.Event.currentEvent = None
+
+def withSession(f):
+  ensureSession()
+  result = f()
+  resetSession()
+  return result
 
 def main():
     import sys
