@@ -161,7 +161,8 @@ class Invoice(EventStamped):
                 (Transaction.date <= self.invoiceDate) &
                 self._noPreviousInvoiceSince(
                     InvoiceableItem.eventId, Transaction.date) &
-                Tenancy.includes(self.personId, Transaction.date))
+                Tenancy.includes(self.personId, Transaction.date)) \
+            .order_by(Transaction.date)
     items = property(_get_items)
     
     def _get_payments(self):
