@@ -47,24 +47,34 @@ class StatementsWindow(Window):
               left=self.months_tbl, right=0, top=0, bottom=0, sticky='nesw')
     self.menus = [
       Menu("Statements", [
-          ("Select likely payments/L", "select_likely_payments"),
-           ])
+          ("Select likely invoiceables/L", "select_likely_invoiceables"),
+          ("Mark selection as invoiceable/I", "mark_selection_as_invoiceable"),
+           ]),
            ]
 
   def setup_menus(self, m):
-    m.select_likely_payments.enabled = bool(self.transactions_tbl.rows)
+    m.select_likely_invoiceables.enabled = bool(self.transactions_tbl.rows)
+    m.mark_selection_as_invoiceable.enabled = bool(list(self.transactions_tbl.selected_rows))
 
   def month_changed(self):
     y, m = self.months_tbl.rows[self.months_tbl.selected_row]
     self.transactions_tbl.rows = D.withSession(lambda: Q.transactionsForMonth(y, m))
     self.transactions_tbl.selected_rows = []
 
-  def select_likely_payments(self):
+  def select_likely_invoiceables(self):
     selection = []
     for i, r in enumerate(self.transactions_tbl.rows):
       if r.isLikelyInvoiceable:
         selection.append(i)
     self.transactions_tbl.selected_rows = selection
+
+  def mark_selection_as_invoiceable(self):
+    def do_mark():
+      for row in self.transactions_tbl.selected_rows:
+        t = self.transactions_tbl.rows[row]
+        Q.markTransactionAsInvoiceable(t, True)
+    D.withSession(do_mark)
+    self.transactions_tbl._ns_inner_view.reloadData()
 
 win = StatementsWindow()
 win.show()

@@ -35,8 +35,14 @@ def transactionsForMonth(year, month):
                                  date(end_year, end_month, 1))
 
 def markTransactionAsInvoiceable(t, invoiceable):
+  if invoiceable == t.isInvoiceable:
+    return
   session = requireSession()
-  if invoiceable and not t.isInvoiceable:
+  if invoiceable:
     session.add(M.InvoiceableItem(t))
-  elif t.isInvoiceable and not invoiceable:
-    raise NotImplementedError
+  else:
+    session.delete(
+      session \
+        .query(M.InvoiceableItem) \
+        .filter(M.InvoiceableItem.fitid == t.fitid))
+  session.expire(t)
