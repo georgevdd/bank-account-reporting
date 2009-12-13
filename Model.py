@@ -121,7 +121,7 @@ class Invoice(EventStamped):
             prevAmt = Decimal('0.00')
         else:
             prevAmt = prevInv.amount
-        return self.total + prevAmt - self.totalPayments
+        return self.total + prevAmt + self.totalPayments
     computedAmount = property(_get_computedAmount)
 
     def _get_previousInvoice(self):

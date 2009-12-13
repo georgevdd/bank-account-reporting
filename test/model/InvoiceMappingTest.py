@@ -351,12 +351,12 @@ class PreviousInvoiceTest(DatabaseTestCase):
         self.assertEqual(None, invoice.previousInvoice)
 
 class InvoiceAmountTest(InvoiceTest):
-    def testComputedAmountIsPreviousAmountPlusItemsLessPayments(self):        
-        previousInvoice = M.Invoice(PREVIOUS_INVOICE_DATE, Decimal('100001.00'))
+    def testComputedAmountIsPreviousAmountPlusItemsPlusPayments(self):        
+        previousInvoice = M.Invoice(PREVIOUS_INVOICE_DATE, Decimal('-100001.00'))
         item1 = M.InvoiceableItem(exampleTransaction(
-            PREVIOUS_INVOICE_DATE + timedelta(1), Decimal('020000.00')))
+            PREVIOUS_INVOICE_DATE + timedelta(1), Decimal('-020000.00')))
         item2 = M.InvoiceableItem(exampleTransaction(
-            INVOICE_DATE - timedelta(1), Decimal('003000.00')))
+            INVOICE_DATE - timedelta(1), Decimal('-003000.00')))
         
         pmt1 = M.PaymentWithOtherEvidence(PREVIOUS_INVOICE_DATE + timedelta(1),
             Decimal('000000.01'), 'pmt1 explanation')
@@ -377,7 +377,7 @@ class InvoiceAmountTest(InvoiceTest):
         resetSession()
         self.session.add(invoice)
         
-        self.assertEqual(Decimal('123000.79'), invoice.computedAmount)
+        self.assertEqual(Decimal('-123000.79'), invoice.computedAmount)
 
 class InvoiceableItemTest(DatabaseTestCase):
     def testInvoiceableItemPersists(self):
