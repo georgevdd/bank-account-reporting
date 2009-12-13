@@ -45,4 +45,14 @@ def markTransactionAsInvoiceable(t, invoiceable):
       session \
         .query(M.InvoiceableItem) \
         .filter(M.InvoiceableItem.fitid == t.fitid))
-  session.expire(t)
+
+def markTransactionAsPayment(t, person):
+  person.payments.append(M.PaymentWithStatementEvidence(t))
+
+def invoicePerson(person, invoiceDate, amount=None):
+  session = requireSession()
+  i = M.Invoice(invoiceDate, amount or M.Decimal(0))
+  session.add(i)
+  if amount is None:
+    i.amount = i.computedAmount
+  person.invoices.append(i)
