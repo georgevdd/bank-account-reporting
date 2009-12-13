@@ -3,7 +3,7 @@ from sqlalchemy.sql import asc, cast, func
 from sqlalchemy.types import INT
 
 import Model as M
-from Database import ensureSession, resetSession, requireSession
+from Database import ensureSession, resetSession, requireSession, flushSession
 
 date_part = func.date_part
 
@@ -52,7 +52,9 @@ def markTransactionAsPayment(t, person):
 def invoicePerson(person, invoiceDate, amount=None):
   session = requireSession()
   i = M.Invoice(invoiceDate, amount or M.Decimal(0))
-  session.add(i)
+  person.invoices.append(i)
+  session.flush()
   if amount is None:
     i.amount = i.computedAmount
-  person.invoices.append(i)
+    session.flush()
+  return i
