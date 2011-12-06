@@ -1,17 +1,18 @@
 from mechanize import urlopen, Request, ParseResponse, ParseFile
 from urllib import urlencode
 from StringIO import StringIO
-from BeautifulSoup import BeautifulSoup
+from BeautifulSoup import BeautifulSoup as RealBeautifulSoup
 from sys import stdin, stderr
 from getpass import getpass
+from re import compile
 from urlparse import urljoin
 
 loggedIn = False
 docsListHit = False
 
 HOMEPAGE_URL = 'http://www.halifax-online.co.uk'
-HOMEPAGE_TITLE = 'Halifax - Welcome to Online'
-MEMORABLE_INFO_FORM_TITLE = 'Enter memorable information'
+HOMEPAGE_TITLE = 'Welcome to Online Banking'
+MEMORABLE_INFO_FORM_TITLE = 'Halifax - Enter Memorable Information'
 DOCS_LIST_URL = ('https://online-documents.halifax-online.co.uk' +
     '/onlinedocuments/app/oddocuments.asp')
 DOC_URL = ('https://online-documents.halifax-online.co.uk'+
@@ -29,12 +30,18 @@ def getLoginInfo():
 def getMemorableInfo(indices):
     return getpass('Memorable info characters %d, %d and %d: ' % tuple(indices))
 
-def checkPageTitle(soup, expectedTitle):
-    title = soup.title.contents[0].strip()
-    if expectedTitle != title:
+def checkPageText(soup, element, expectedText):
+    text = element.contents[0].strip()
+    if expectedText != text:
         global errorSoup
         errorSoup = soup
-        raise Exception('Title was "%s", not "%s"' % (title, expectedTitle))
+        raise Exception('Text was "%s", not "%s"' % (text, expectedText))
+
+def checkPageTitle(soup, expectedTitle):
+    checkPageText(soup, soup.title, expectedTitle)
+
+def checkPageH1(soup, expectedHeading):
+    checkPageText(soup, soup.h1, expectedHeading)
 
 def checkForErrors(soup):
     errors = soup.findAll(id='AdditionalInfo')
@@ -52,26 +59,28 @@ def doWithRetries(func, retries = 4, **kwargs):
         retries -= 1
     return func(**kwargs)
 
+def BeautifulSoup(html, *args, **kwargs):
+    '''See http://mail.python.org/pipermail/python-bugs-list/2007-February/037082.html'''
+    return RealBeautifulSoup(html.replace('&#', 'xx'), *args, **kwargs)
+
 class LoginForm(object):
     def __init__(self, httpResponse):
         responseText = httpResponse.read()
         soup = BeautifulSoup(responseText)
 
-        checkPageTitle(soup, HOMEPAGE_TITLE)
+        checkPageH1(soup, HOMEPAGE_TITLE)
 
         forms = ParseFile(StringIO(responseText),
                           httpResponse.geturl(),
                           backwards_compat=False)
-        self.form = forms[1]
+        self.form = forms[0]
 
     def populate(self, loginInfo):
-        self.form['Username'] = loginInfo.username
-        self.form['password'] = loginInfo.password
-        self.form.find_control('JSEnabled').readonly = False
-        self.form['JSEnabled'] = 'true'
+        self.form['frmLogin:strCustomerLogin_userID'] = loginInfo.username
+        self.form['frmLogin:strCustomerLogin_pwd'] = loginInfo.password
 
     def submissionRequest(self):
-        return self.form.click('btnContinue')
+        return self.form.click('frmLogin:btnLogin1')
 
 class MemorableInfoForm(object):
     def __init__(self, httpResponse):
@@ -81,10 +90,12 @@ class MemorableInfoForm(object):
         checkForErrors(soup)
         checkPageTitle(soup, MEMORABLE_INFO_FORM_TITLE)
 
+        expr = compile('Character ([0-9]+).*')
+
         self.memorableInfoIndices = [
-            int(soup
-                .find('span', id='ctl00_MainPageContent_labelChar%d' % i)
-                .string[-1])
+            int(expr.match(soup
+                .find('label', attrs={ 'for': 'frmentermemorableinformation1:strEnterMemorableInformation_memInfo%d' % i })
+                .contents[0]).group(1))
             for i in range(1, 4)]
 
         forms = ParseFile(StringIO(pageText),
@@ -97,14 +108,18 @@ class MemorableInfoForm(object):
             raise ValueError('Expected three memorable info characters.')
 
         for i, v in zip(range(1, 4), memorableInfoCharacters.lower()):
-            self.form.set_value_by_label(
-                ['\xa0%s\xa0' % v],
-                ('ctl00$MainPageContent$char%d$DropDownList' % i))
-        self.form.find_control('ctl00$javascriptEnabled1').readonly = False
-        self.form['ctl00$javascriptEnabled1'] = 'true'
+            f = self.form.find_control(
+                type='select',
+                name='frmentermemorableinformation1:strEnterMemorableInformation_memInfo%d' % i)
+            try:
+                f.value = (['&nbsp;%s' %v])
+            except:
+                print f.possible_items()
+                print f.value
+                raise
 
     def submissionRequest(self):
-        return self.form.click('ctl00$MainPageContent$_signin')
+        return self.form.click('frmentermemorableinformation1:btnContinue')
 
 def logIn():
     loginForm = LoginForm(urlopen(HOMEPAGE_URL))
