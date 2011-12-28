@@ -5,19 +5,31 @@ from BeautifulSoup import BeautifulSoup as RealBeautifulSoup
 from sys import stdin, stderr
 from getpass import getpass
 from re import compile
-from urlparse import urljoin
+from urlparse import parse_qs, urlparse, urlunparse
+from datetime import date
+from dateutil.relativedelta import relativedelta
 
 loggedIn = False
 docsListHit = False
 
-HOMEPAGE_URL = 'http://www.halifax-online.co.uk'
+HOMEPAGE_URL = 'https://www.halifax-online.co.uk'
 HOMEPAGE_TITLE = 'Welcome to Online Banking'
 MEMORABLE_INFO_FORM_TITLE = 'Halifax - Enter Memorable Information'
-DOCS_LIST_URL = ('https://online-documents.halifax-online.co.uk' +
-    '/onlinedocuments/app/oddocuments.asp')
-DOC_URL = ('https://online-documents.halifax-online.co.uk'+
-        '/onlinedocuments/app/odviewdocument.asp')
-LOGOUT_URL = 'https://www.halifax-online.co.uk/_mem_bin/SignOff.asp'
+EXPORT_FORM_URL = ('https://secure.halifax-online.co.uk'
+                   '/personal/a/viewproductdetails'
+                   '/m44_exportstatement.jsp')
+EXPORT_FORM_TITLE = 'Halifax - Export Statement'
+LOGOUT_URL = ('https://secure.halifax-online.co.uk'
+              '/personal/a/viewaccount/accountoverviewpersonalbase.jsp'
+              '?lnkcmd=lnkCustomerLogoff')
+
+def customizeUserAgent():
+    import mechanize
+    cookies = mechanize.CookieJar()
+    opener = mechanize.build_opener(mechanize.HTTPCookieProcessor(cookies))
+    # Pretend to be Chrome to avoid getting the mobile site.
+    opener.addheaders = [("User-agent", "Chrome/16.0.912.63")]
+    mechanize.install_opener(opener)
 
 class LoginInfo(object):
     def __init__(self, username, password):
@@ -83,6 +95,9 @@ class LoginForm(object):
         return self.form.click('frmLogin:btnLogin1')
 
 class MemorableInfoForm(object):
+    memInfoFmt = ('frmentermemorableinformation1:'
+                  'strEnterMemorableInformation_memInfo%d')
+
     def __init__(self, httpResponse):
         pageText = httpResponse.read()
         soup = BeautifulSoup(pageText)
@@ -94,7 +109,7 @@ class MemorableInfoForm(object):
 
         self.memorableInfoIndices = [
             int(expr.match(soup
-                .find('label', attrs={ 'for': 'frmentermemorableinformation1:strEnterMemorableInformation_memInfo%d' % i })
+                .find('label', attrs={ 'for': self.memInfoFmt % i })
                 .contents[0]).group(1))
             for i in range(1, 4)]
 
@@ -108,9 +123,7 @@ class MemorableInfoForm(object):
             raise ValueError('Expected three memorable info characters.')
 
         for i, v in zip(range(1, 4), memorableInfoCharacters.lower()):
-            f = self.form.find_control(
-                type='select',
-                name='frmentermemorableinformation1:strEnterMemorableInformation_memInfo%d' % i)
+            f = self.form.find_control(type='select', name=self.memInfoFmt % i)
             try:
                 f.value = (['&nbsp;%s' %v])
             except:
@@ -121,7 +134,27 @@ class MemorableInfoForm(object):
     def submissionRequest(self):
         return self.form.click('frmentermemorableinformation1:btnContinue')
 
+def chooseCurrentAccount(landingPageText):
+    landingPage = BeautifulSoup(landingPageText)
+    checkForErrors(landingPage)
+    accountUrl = landingPage.form.find(text='Current Account').parent['href']
+    queryParams = parse_qs(urlparse(accountUrl).query)
+    accountId = queryParams['NOMINATED_ACCOUNT'][0]
+    linkCmd = queryParams['lnkcmd'][0]
+    chooseAccountUrl = urlunparse((
+        'https',
+        'secure.halifax-online.co.uk',
+        '/personal/a/viewaccount/accountoverviewpersonalbase.jsp',
+        '',
+        urlencode({'NOMINATED_ACCOUNT': accountId, 'lnkcmd': linkCmd}),
+        ''))
+
+    nextPage = BeautifulSoup(urlopen(chooseAccountUrl).read())
+    checkForErrors(nextPage)
+
 def logIn():
+    customizeUserAgent()
+    
     loginForm = LoginForm(urlopen(HOMEPAGE_URL))
     loginInfo = getLoginInfo()
     loginForm.populate(loginInfo)
@@ -131,58 +164,45 @@ def logIn():
     memorableInfo = getMemorableInfo(memorableInfoForm.memorableInfoIndices)
     memorableInfoForm.populate(memorableInfo)
 
-    pageText = urlopen(memorableInfoForm.submissionRequest()).read()
-    checkForErrors(BeautifulSoup(pageText))
+    chooseCurrentAccount(urlopen(memorableInfoForm.submissionRequest()).read())
 
-    global loggedIn, docsListHit
+    global loggedIn
     loggedIn = True
-    docsListHit = False
 
-def ensureDocsListHit():
-    global docsListHit
-    if not docsListHit:
-        urlopen(DOCS_LIST_URL).read()
-        docsListHit = True
+def exportMonth(exportDate):
+    thisMonthStart = date(exportDate.year, exportDate.month, 1)
+    thisMonthEnd = thisMonthStart + relativedelta(months=1, days=-1)
+    
+    httpResponse = urlopen(EXPORT_FORM_URL)
+    responseText = httpResponse.read()
+    soup = BeautifulSoup(responseText)
+    checkForErrors(soup)
+    form = ParseFile(StringIO(responseText),
+                     httpResponse.geturl(),
+                     backwards_compat=False)[0]
+    
+    form['frmTest:rdoDateRange'] = ['1']
+    
+    form['frmTest:dtSearchFromDate'] = ['%02d' % thisMonthStart.day]
+    form['frmTest:dtSearchFromDate.month'] = ['%02d' % thisMonthStart.month]
+    form['frmTest:dtSearchFromDate.year'] = ['%04d' % thisMonthStart.year]
+    
+    form['frmTest:dtSearchToDate'] = ['%02d' % thisMonthEnd.day]
+    form['frmTest:dtSearchToDate.month'] = ['%02d' % thisMonthEnd.month]
+    form['frmTest:dtSearchToDate.year'] = ['%04d' % thisMonthEnd.year]
 
-def getDoc(nthMostRecent):
-    ensureDocsListHit()
-
-    docData = {
-        'DLFormats':'ofx',
-        'btnDownload':'Go',
-        'doc':('A%d' % nthMostRecent)
-        }
-    response = urlopen(DOC_URL , data=urlencode(docData))
-    docText = response.read()
-    return docText
-
-def isServiceInterruption(doc):
-    soup = BeautifulSoup(doc)
-    return ((soup.title is not None) and
-            (len(soup.title.contents) > 0) and
-            (soup.title.contents[0] == 'Service Interruption'))
-
-def genAllStatements(maxFailures=4):
-    gotAnyDoc = False
-    nextDocIndex = 1
-    while True:
-        try:
-            doc = getDoc(nextDocIndex)
-            if isServiceInterruption(doc):
-                raise Exception('Document %d could not be retrieved.' %
-                        nextDocIndex)
-            gotAnyDoc = True
-            yield doc
-        except Exception, e:
-            print >> stderr, str(e)
-            if gotAnyDoc or (maxFailures == 0):
-                break
-            maxFailures -= 1
-        nextDocIndex += 1
+    form['frmTest:strExportFormatSelected'] = ['Internet banking text/spreadsheet (.CSV)']
+    
+    return form.click()
 
 def logOut():
-    global loggedIn, docsListHit
+    global loggedIn
     loggedIn = False
-    docsListHit = False
     urlopen(LOGOUT_URL).read()
 
+def test():
+    logIn()
+    try:
+        print urlopen(exportMonth(date(2011,11,1))).read()
+    finally:
+        logOut()
