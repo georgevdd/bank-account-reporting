@@ -5,7 +5,7 @@ from BeautifulSoup import BeautifulSoup as RealBeautifulSoup
 from sys import stdin, stderr
 from getpass import getpass
 from re import compile
-from urlparse import parse_qs, urlparse, urlunparse
+from urlparse import parse_qs, urljoin, urlparse, urlunparse
 from datetime import date
 from dateutil.relativedelta import relativedelta
 
@@ -56,7 +56,8 @@ def checkPageH1(soup, expectedHeading):
     checkPageText(soup, soup.h1, expectedHeading)
 
 def checkForErrors(soup):
-    errors = soup.findAll(id='AdditionalInfo')
+    errors = (soup.findAll(id='AdditionalInfo') or
+              soup.findAll(id='frmErrorPageLoggedIn'))
     if errors:
         global errorSoup
         errorSoup = soup
@@ -134,20 +135,12 @@ class MemorableInfoForm(object):
     def submissionRequest(self):
         return self.form.click('frmentermemorableinformation1:btnContinue')
 
-def chooseCurrentAccount(landingPageText):
+def chooseCurrentAccount(landingPageResponse):
+    landingPageText = landingPageResponse.read()
     landingPage = BeautifulSoup(landingPageText)
     checkForErrors(landingPage)
-    accountUrl = landingPage.form.find(text='Current Account').parent['href']
-    queryParams = parse_qs(urlparse(accountUrl).query)
-    accountId = queryParams['NOMINATED_ACCOUNT'][0]
-    linkCmd = queryParams['lnkcmd'][0]
-    chooseAccountUrl = urlunparse((
-        'https',
-        'secure.halifax-online.co.uk',
-        '/personal/a/viewaccount/accountoverviewpersonalbase.jsp',
-        '',
-        urlencode({'NOMINATED_ACCOUNT': accountId, 'lnkcmd': linkCmd}),
-        ''))
+    accountUrl = landingPage.form.find(text='Reward Current Account').parent['href']
+    chooseAccountUrl = urljoin(landingPageResponse.geturl(), accountUrl)
 
     nextPage = BeautifulSoup(urlopen(chooseAccountUrl).read())
     checkForErrors(nextPage)
@@ -164,7 +157,7 @@ def logIn():
     memorableInfo = getMemorableInfo(memorableInfoForm.memorableInfoIndices)
     memorableInfoForm.populate(memorableInfo)
 
-    chooseCurrentAccount(urlopen(memorableInfoForm.submissionRequest()).read())
+    chooseCurrentAccount(urlopen(memorableInfoForm.submissionRequest()))
 
     global loggedIn
     loggedIn = True
@@ -177,23 +170,26 @@ def exportMonth(exportDate):
     responseText = httpResponse.read()
     soup = BeautifulSoup(responseText)
     checkForErrors(soup)
+
     form = ParseFile(StringIO(responseText),
                      httpResponse.geturl(),
                      backwards_compat=False)[0]
     
     form['frmTest:rdoDateRange'] = ['1']
-    
-    form['frmTest:dtSearchFromDate'] = ['%02d' % thisMonthStart.day]
-    form['frmTest:dtSearchFromDate.month'] = ['%02d' % thisMonthStart.month]
-    form['frmTest:dtSearchFromDate.year'] = ['%04d' % thisMonthStart.year]
-    
-    form['frmTest:dtSearchToDate'] = ['%02d' % thisMonthEnd.day]
-    form['frmTest:dtSearchToDate.month'] = ['%02d' % thisMonthEnd.month]
-    form['frmTest:dtSearchToDate.year'] = ['%04d' % thisMonthEnd.year]
+
+    for (dn, d) in [('From', thisMonthStart),
+                    ('To', thisMonthEnd)]:
+        fn = 'frmTest:dtSearch%sDate' % dn
+        form[fn           ] = ['%02d' % d.day]
+        form[fn + '.month'] = ['%02d' % d.month]
+        form[fn + '.year' ] = ['%04d' % d.year]
 
     form['frmTest:strExportFormatSelected'] = ['Internet banking text/spreadsheet (.CSV)']
     
     return form.click()
+
+def genAllStatements():
+    pass
 
 def logOut():
     global loggedIn
