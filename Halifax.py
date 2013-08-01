@@ -163,8 +163,8 @@ def logIn():
     loggedIn = True
 
 def exportMonth(exportDate):
-    thisMonthStart = date(exportDate.year, exportDate.month, 1)
-    thisMonthEnd = thisMonthStart + relativedelta(months=1, days=-1)
+    monthStart = date(exportDate.year, exportDate.month, 1)
+    monthEnd = min(date.today(), monthStart + relativedelta(months=1, days=-1))
     
     httpResponse = urlopen(EXPORT_FORM_URL)
     responseText = httpResponse.read()
@@ -177,8 +177,8 @@ def exportMonth(exportDate):
     
     form['frmTest:rdoDateRange'] = ['1']
 
-    for (dn, d) in [('From', thisMonthStart),
-                    ('To', thisMonthEnd)]:
+    for (dn, d) in [('From', monthStart),
+                    ('To', monthEnd)]:
         fn = 'frmTest:dtSearch%sDate' % dn
         form[fn           ] = ['%02d' % d.day]
         form[fn + '.month'] = ['%02d' % d.month]
@@ -189,7 +189,12 @@ def exportMonth(exportDate):
     return form.click()
 
 def genAllStatements():
-    pass
+    today = date.today()
+    month = date(today.year, today.month, 1)
+    while True:
+        response = urlopen(exportMonth(month))
+        yield month, response
+        month = month + relativedelta(months=-1)
 
 def logOut():
     global loggedIn
