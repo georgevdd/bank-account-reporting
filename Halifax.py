@@ -162,7 +162,7 @@ def logIn():
     global loggedIn
     loggedIn = True
 
-def exportMonth(exportDate):
+def exportMonth(exportDate, format='qif'):
     monthStart = date(exportDate.year, exportDate.month, 1)
     monthEnd = min(date.today(), monthStart + relativedelta(months=1, days=-1))
     
@@ -184,15 +184,19 @@ def exportMonth(exportDate):
         form[fn + '.month'] = ['%02d' % d.month]
         form[fn + '.year' ] = ['%04d' % d.year]
 
-    form['frmTest:strExportFormatSelected'] = ['Internet banking text/spreadsheet (.CSV)']
+    formats = {
+        'qif': 'Quicken 98 and 2000 and Money (.QIF)',
+        'csv': 'Internet banking text/spreadsheet (.CSV)',
+        }
+    form['frmTest:strExportFormatSelected'] = [formats[format]]
     
     return form.click()
 
-def genAllStatements():
+def genAllStatements(format='qif'):
     today = date.today()
     month = date(today.year, today.month, 1)
     while True:
-        response = urlopen(exportMonth(month))
+        response = urlopen(exportMonth(month, format))
         yield month, response
         month = month + relativedelta(months=-1)
 
