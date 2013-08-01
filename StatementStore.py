@@ -8,12 +8,12 @@ from datetime import date
 import os
 import re
 
-STORE_PATH = "/home/georgevdd/bills/bank-statements/"
+STORE_PATH = "/Users/georgevdd/Google Drive/bills"
 
-def statementFilename(stmt):
-    return '%s_%s' % (stmt.beginDate.isoformat(), stmt.endDate.isoformat())
+def statementFilename(month):
+    return '%s.csv' % month.strftime('%Y-%m')
 
-statementFilenamePattern = re.compile('(XXXX)-(XX)-(XX)_(XXXX)-(XX)-(XX)'.replace('X','\d'))
+statementFilenamePattern = re.compile(r'(XXXX)-(XX)\.csv'.replace('X','\d'))
 
 def statementDateRangeFromFilename(filename):
     match = statementFilenamePattern.match(filename)
@@ -21,7 +21,9 @@ def statementDateRangeFromFilename(filename):
     if numbers is None:
         raise Exception('\"%s\" is not a valid statement filename.' % filename)
     try:
-        return (date(*numbers[0:3]), date(*numbers[3:6]))
+        start = date(numbers[0], numbers[1], 1)
+        end = date + relativedelta(months=1, days=-1)
+        return start, end
     except ValueError:
         raise ValueError('\"%s\" is not a valid statement filename.' % filename)
 
@@ -36,9 +38,10 @@ def fetchNewStatements(forceFetchAll=False):
     print 'Logged in.'
     try:
         consecutiveParseFailures = 0
-        for text in Halifax.genAllStatements():
+        existingFiles = 0
+        for month, response in Halifax.genAllStatements():
             try:
-                stmt = MsMoney.Statement(StringIO(text))
+                text = response.read()
                 consecutiveParseFailures = 0
             except Exception, e:
                 consecutiveParseFailures += 1
@@ -48,15 +51,17 @@ def fetchNewStatements(forceFetchAll=False):
                 else:
                     print 'Skipping document; it could not be understood.'
                     continue
-            filename = statementFilename(stmt)
+            filename = statementFilename(month)
             print filename
             filename = pjoin(STORE_PATH, filename)
-            if exists(filename) and not forceFetchAll:
-                print 'File exists. Stopping.'
-                break
-            file = open(filename, 'w')
-            print >> file, text
-            file.close()
+            if exists(filename):
+                if existingFiles > 0 and not forceFetchAll:
+                    print ('File exists (and is not the most '
+                           'recent existing). Stopping.')
+                    break
+                else:
+                    existingFiles += 1
+            print >> open(filename, 'w'), text
     finally:
         Halifax.logOut()
         print 'Logged out.'
