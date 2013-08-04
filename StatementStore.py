@@ -6,13 +6,14 @@ import CsvStatement
 from os.path import join as pjoin, splitext, exists
 from StringIO import StringIO
 from datetime import date
+from dateutil.relativedelta import relativedelta
 import os
 import re
 
 STORE_PATH = "/Users/georgevdd/Google Drive/bills"
 
 FORMATS = {
-    'qif': QifStatement.parseQif,
+    'qif': QifStatement.QifStatement,
     'csv': CsvStatement.CsvStatement,
     }
 
@@ -24,13 +25,13 @@ def statementFilenamePattern(format):
 
 def statementDateRangeFromFilename(filename):
     format = splitext(filename)[1][1:]
-    match = statementFilenamePattern(format).match(filename)
+    match = statementFilenamePattern(format).match(os.path.basename(filename))
     numbers = match and [int(x) for x in match.groups()] or None
     if numbers is None:
         raise Exception('\"%s\" is not a valid statement filename.' % filename)
     try:
         start = date(numbers[0], numbers[1], 1)
-        end = date + relativedelta(months=1, days=-1)
+        end = start + relativedelta(months=1, days=-1)
         return start, end
     except ValueError:
         raise ValueError('\"%s\" is not a valid statement filename.' % filename)
@@ -40,6 +41,13 @@ def genDownloadedStatementFilenames(format='qif'):
         for filename in files:
             if statementFilenamePattern(format).match(filename):
                 yield pjoin(path, filename)
+
+def fetchOneStatement(monthDate, format='qif'):
+    response = Halifax.urlopen(Halifax.exportMonth(monthDate))
+    text = response.read()
+    statement = FORMATS[format](StringIO(text))
+    filename = statementFilename(month, format)
+    print >> open(filename, 'w'), text
 
 def fetchNewStatements(forceFetchAll=False, format='qif'):
     Halifax.logIn()
