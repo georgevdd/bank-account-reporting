@@ -30,10 +30,13 @@ def createInitialState():
     
     importAll()
 
+    george = M.Person('George', 'van den Driessche')		
+    george.tenancies.append(M.Tenancy(date(2010, 12, 19), None))		
+
     mike = M.Person('Mike', 'Sackur')
     mike.tenancies.append(M.Tenancy(date(2012, 6, 1), None))
 
-    for person in [mike]:
+    for person in [george, mike]:
         session.add(person)
     resetSession()
 
