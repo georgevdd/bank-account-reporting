@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from datetime import date
-from GUI import Window, ModalDialog, Menu, Table, application
+from GUI import Window, ModalDialog, Menu, Table, Column, application
 import Model as M
 import Queries as Q
 import Database as D
@@ -28,7 +28,7 @@ def paymentSymbol(t):
 class PersonPicker(ModalDialog):
   def __init__(self):
     ModalDialog.__init__(self, resizable=True)
-    self.persons_tbl = Table(columns=[('fullName', lambda p: p.fullName)],
+    self.persons_tbl = Table(columns=[Column('fullName', lambda p: p.fullName)],
                              scrolling='v',
                              selection_changed_action=self.person_picked)
     self.place(self.persons_tbl, left=0, right=0, top=0, bottom=0, sticky='nesw')
@@ -44,18 +44,18 @@ class PersonPicker(ModalDialog):
 
 class StatementsWindow(Window):
   def __init__(self):
-    columns = [
+    columns = [Column(*t) for t in [
       ("Day", lambda t: t.date.day),
       ("i?", invoiceableSymbol),
       ("p?", paymentSymbol),
       ("Amount", lambda t: float(t.amount)),
       ("Memo", lambda t: str(t.memo)),
-      ]
+      ]]
     self.transactions_tbl = Table(columns=columns, scrolling='hv',
                                   multi_select=True)
 
     columns = [
-      ("Month", lambda (y, m): date(y, m, 1).strftime("%Y %b")),
+      Column("Month", lambda (y, m): date(y, m, 1).strftime("%Y %b")),
       ]
     rows = D.withSession(Q.allTransactionMonths)
     self.months_tbl = Table(rows=rows, columns=columns, scrolling='v',
