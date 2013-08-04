@@ -6,6 +6,9 @@ load a QIF file into a sequence of those classes.
 It's enough to be useful for writing conversions.
 """
 
+from datetime import datetime, date
+from decimal import Decimal
+import md5
 import sys
  
 class QifItem:
@@ -93,6 +96,26 @@ def parseQif(infile):
 
         line = infile.readline()
     return items
+
+class Transaction(object):
+    def __init__(self, qifItem, indexInStatement):
+        self.date = datetime.strptime(qifItem.date, '%d/%m/%Y').date()
+        self.type = 'UNKNOWN'
+        self.description = ''
+        self.creditAmount = Decimal(qifItem.amount)
+        self.memo = qifItem.payee
+
+        hash = md5.md5()
+        for v in [self.date, indexInStatement]:
+            hash.update(str(v))
+        self.fitid = hash.hexdigest()
+
+class QifStatement(object):
+    def __init__(self, qifFile):
+        self.transactions = [Transaction(entry, i)
+                             for i, entry in enumerate(parseQif(qifFile))]
+        self.beginDate = min([t.date for t in self.transactions])
+        self.endDate = max([t.date for t in self.transactions])
 
 if __name__ == "__main__":
     # read from stdin and write CSV to stdout
