@@ -215,7 +215,7 @@ def initMappings():
             })
 
     isLikelyInvoiceable = a.exists([1],
-        s.statementItem.c.name.ilike(s.likelyInvoiceable.c.pattern)) \
+        s.statementItem.c.memo.ilike(s.likelyInvoiceable.c.pattern)) \
         .correlate(s.statementItem) \
         .label('isLikelyInvoiceable')
     isInvoiceable = a.exists([1],
