@@ -3,14 +3,14 @@
 import sys
 import Model
 from Database import ensureSession, resetSession
-from MsMoney import Statement
+from QifStatement import QifStatement as Statement
 import StatementStore
 
 genDownloadedStatementFilenames = StatementStore.genDownloadedStatementFilenames
 
 def importAll():
     session = ensureSession()
-    for filename in genDownloadedStatementFilenames():
+    for filename in genDownloadedStatementFilenames('qif'):
         stmt = Statement(open(filename))
         print '%s - %s' % (stmt.beginDate, stmt.endDate),
         stmt_exists = (session.query(Model.ImportedStatement)
@@ -25,16 +25,17 @@ def importAll():
             if not trn_exists:
                 # Create a Model.Transaction out of a
                 # MsMoney.Transaction.
-                trn = Model.Transaction(trn.date, trn.amount,
-                    trn.fitid, trn.name, trn.memo)
+                trn = Model.Transaction(trn.date, trn.creditAmount,
+                    trn.fitid, trn.description, trn.memo)
                 session.add(trn)
         if stmt_exists:
             print 'already exists.'
         else:
-            session.add(Model.ImportedStatement(stmt.beginDate, stmt.endDate))
+            session.add(Model.ImportedStatement(
+                *StatementStore.statementDateRangeFromFilename(filename)))
             print 'saved.'
             
-    resetSession()
+        resetSession()
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
