@@ -176,15 +176,15 @@ class Invoice(EventStamped):
                 self._hasNoEarlierEventIdThan(Payment.eventId) &
                 (Payment.paymentDate <= self.invoiceDate) &
                 self._noPreviousInvoiceSince(Payment.eventId, Payment.paymentDate)) \
-            .order_by([Payment.paymentDate])
+            .order_by(Payment.paymentDate)
     payments = property(_get_payments)
     
     def _get_total(self):
-        return sum([x.amountPerTenant for x in self.items])
+        return -sum([x.amountPerTenant for x in self.items])
     total = property(_get_total)
     
     def _get_totalPayments(self):
-        return sum([x.amount for x in self.payments])
+        return -sum([x.amount for x in self.payments])
     totalPayments = property(_get_totalPayments)
 
 class LikelyInvoiceable(object):
