@@ -10,7 +10,7 @@ genDownloadedStatementFilenames = StatementStore.genDownloadedStatementFilenames
 
 def importAll():
     session = ensureSession()
-    for filename in genDownloadedStatementFilenames('qif'):
+    for filename in reversed(list(genDownloadedStatementFilenames('qif'))):
         stmt = Statement(open(filename))
         print '%s - %s' % (stmt.beginDate, stmt.endDate),
         stmt_exists = (session.query(Model.ImportedStatement)
