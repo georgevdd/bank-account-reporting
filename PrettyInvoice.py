@@ -1,6 +1,8 @@
 from decimal import Decimal
 from datetime import date
 
+import Model as M
+
 def rule(o):
   print >> o, '=' * 80
 
@@ -23,6 +25,12 @@ def table(o, data, cols):
 def rjust(s):
   return '% 80s' % s
 
+def describe(payment):
+    if type(payment) is M.PaymentWithStatementEvidence:
+        return payment.transaction.name
+    else:
+        return payment.explanation
+
 def pretty(o, invoice):
   rule(o)
   print >> o, 'Invoice for %s generated on %s' % (invoice.personTo.fullName, str(date.today()))
@@ -36,7 +44,7 @@ def pretty(o, invoice):
   table(o, invoice.payments,
     [('Date', lambda p: str(p.paymentDate), '% 12s'),
      ('Amount', lambda p: pounds(p.amount), '% 9s'),
-     ('', lambda p: p.transaction.name, '      %s')])
+     ('', describe, '      %s')])
   print >> o, rjust('Total Payments: %s' % pounds(-invoice.totalPayments))
 
   blankLine(o)
