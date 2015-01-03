@@ -138,12 +138,18 @@ class MemorableInfoForm(object):
 def chooseCurrentAccount(landingPageResponse):
     landingPageText = landingPageResponse.read()
     landingPage = BeautifulSoup(landingPageText)
-    checkForErrors(landingPage)
-    accountUrl = landingPage.form.find(text='Reward Current Account').parent['href']
-    chooseAccountUrl = urljoin(landingPageResponse.geturl(), accountUrl)
+    try:
+        checkPageTitle(landingPage, 'Halifax - Personal Account Overview')
+        checkForErrors(landingPage)
+        accountUrl = landingPage.find(text='Reward Current Account').parent['href']
+        chooseAccountUrl = urljoin(landingPageResponse.geturl(), accountUrl)
 
-    nextPage = BeautifulSoup(urlopen(chooseAccountUrl).read())
-    checkForErrors(nextPage)
+        nextPage = BeautifulSoup(urlopen(chooseAccountUrl).read())
+        checkForErrors(nextPage)
+    except Exception, e:
+        global errorSoup
+        errorSoup = landingPage
+        raise
 
 def logIn():
     customizeUserAgent()
