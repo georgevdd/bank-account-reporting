@@ -6,28 +6,37 @@ from TestSetup import testDbs, resetSession, DatabaseTestCase
 from StringIO import StringIO
 import MsMoney, Model
 from Model import ImportedStatement
+import QifStatement
 
 import ImportStatements as IS
 import Database as DB
 
 class ImportStatementsTest(DatabaseTestCase):
-    def mockGenDownloadedStatementFilenames(self):
-        return ['DUMMY_FILENAME']
+    def mockGenDownloadedStatementFilenames(self, format):
+        return ['1000-01.qif']
 
     def mockOpen(self, filename):
-        self.assertEqual('DUMMY_FILENAME', filename)
+        self.assertEqual('1000-01.qif', filename)
         return StringIO('DUMMY_CONTENT')
 
     def mockStatement(thisTest):
         class MockStatement:
             def __init__(self, file):
                 thisTest.assertEqual(['DUMMY_CONTENT'], file.readlines())
-                self.beginDate = date(1000, 01, 06)
-                self.endDate = date(1000, 02, 07)
-                self.transactions = [
-                     MsMoney.Transaction(date(1000, 01, 06), Decimal('123.45'), 'FITID1', 'Example Transaction 1', 'Memo 1'),
-                     MsMoney.Transaction(date(1000, 01, 26), Decimal('456.78'), 'FITID2', 'Example Transaction 2', 'Memo 2')
-                 ]
+                self.beginDate = date(1000, 01, 01)
+                self.endDate = date(1000, 01, 31)
+
+                qifItems = QifStatement.parseQif(StringIO('''D31/01/1000
+PMemo 1
+T-123.45
+^
+D30/01/1000
+PMemo 2
+T-456.78
+^
+'''))
+
+                self.transactions = [QifStatement.Transaction(item, i) for i, item in enumerate(qifItems)]
         return MockStatement
     
     def setUp(self):
@@ -43,8 +52,8 @@ class ImportStatementsTest(DatabaseTestCase):
         self.assertNotEqual(None, importedStatements)
         self.assertEqual(1, len(importedStatements))
         record = importedStatements[0]
-        self.assertEqual(date(1000, 01, 06), record.beginDate)
-        self.assertEqual(date(1000, 02, 07), record.endDate)
+        self.assertEqual(date(1000, 01, 01), record.beginDate)
+        self.assertEqual(date(1000, 01, 31), record.endDate)
 
     def testImportAllCreatesTransactions(self):
         IS.importAll()
